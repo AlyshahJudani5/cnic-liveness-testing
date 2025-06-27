@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNIC Images + Log Metadata</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+            line-height: 1.6;
+        }
+
+        /* Header Styles */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-icon {
+            background: #2563eb;
+            padding: 8px;
+            border-radius: 8px;
+            color: white;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-title h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+
+        .header-title p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .control-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            gap: 16px;
+        }
+
+        .control-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .control-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .select-all-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .select-all-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #2563eb;
+        }
+
+        .select-all-container label {
+            font-weight: 600;
+            cursor: pointer;
+            color: #374151;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .download-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .download-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .selection-count {
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .download-progress {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #166534;
+            font-size: 14px;
+            display: none;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 16px 32px;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: #dc2626;
+        }
+
+        .error-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* Image Grid */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (min-width: 1024px) {
+            .image-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .image-card.selected {
+            border: 2px solid #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .image-checkbox {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            z-index: 10;
+            accent-color: #2563eb;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-container {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.2s ease;
+        }
+
+        .filename-header {
+            padding: 16px;
+            font-weight: 600;
+            color: #111827;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        /* Pagination */
+        .pagination {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pagination-btn {
+            background: white;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .page-numbers {
+            display: flex;
+            gap: 4px;
+        }
+
+        .page-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 1200px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9fafb;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #111827;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .modal-download-btn {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .modal-download-btn:hover {
+            background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+            transform: translateY(-1px);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            color: #6b7280;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .modal-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .modal-image-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            padding: 24px;
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-json-section {
+            flex: 1;
+            background: #1e293b;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .json-header {
+            padding: 16px 20px;
+            background: #334155;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid #475569;
+        }
+
+        .json-container {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        .json-display {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #e2e8f0;
+        }
+
+        /* JSON Syntax Highlighting */
+        .json-key { color: #7dd3fc; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-boolean { color: #f472b6; }
+        .json-null { color: #94a3b8; }
+        .json-punctuation { color: #cbd5e1; }
+
+        /* Icons */
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .download-icon {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .header-stats {
+                justify-content: center;
+            }
+
+            .control-card {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+
+            .control-right {
+                justify-content: center;
+            }
+
+            .image-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal-content {
+                margin: 8px;
+                max-height: calc(100vh - 16px);
+            }
+
+            .modal-body {
+                flex-direction: column;
+            }
+
+            .modal-image-section,
+            .modal-json-section {
+                flex: none;
+                height: 50%;
+            }
+
+            .pagination {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="header-icon">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                    </svg>
+                </div>
+                <div class="header-title">
+                    <h1>📷 CNIC Images + Log Metadata</h1>
+                    <p>View, select and download your CNIC verification images</p>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                    </svg>
+                    <span id="totalImages">0 Images</span>
+                </div>
+                <div class="stat-item">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                    <span id="pageInfo">Page 1 of 1</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <div class="control-card">
+            <div class="control-left">
+                <div class="download-progress" id="downloadProgress"></div>
+            </div>
+            <div class="control-right">
+                <div class="select-all-container">
+                    <input type="checkbox" id="selectAll">
+                    <label for="selectAll">Select All</label>
+                </div>
+                
+                <button class="download-btn" id="downloadBtn" disabled>
+                    <svg class="download-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                    </svg>
+                    Download Selected
+                </button>
+                
+                <span class="selection-count" id="selectionCount">0 images selected</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading images and logs...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="error" style="display: none;">
+            <svg class="error-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            <p id="errorMessage">Failed to load images</p>
+        </div>
+
+        <!-- Image Grid -->
+        <div id="imageGallery" class="image-grid" style="display: none;"></div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination" style="display: none;">
+            <div class="pagination-info" id="paginationInfo"></div>
+            <div class="pagination-controls">
+                <button class="pagination-btn" id="prevBtn">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    </svg>
+                    Previous
+                </button>
+                <div class="page-numbers" id="pageNumbers"></div>
+                <button class="pagination-btn" id="nextBtn">
+                    Next
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                    </svg>
+                    <span></span>
+                </h2>
+                <div class="modal-actions">
+                    <button class="modal-download-btn" id="modalDownloadBtn">
+                        <svg class="download-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                        </svg>
+                        Download
+                    </button>
+                    <button class="close-btn" id="closeModal">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-image-section">
+                    <img id="modalImage" class="modal-image" alt="">
+                </div>
+                <div class="modal-json-section">
+                    <div class="json-header">JSON Metadata</div>
+                    <div class="json-container">
+                        <div id="modalJson" class="json-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedImages = new Set();
+        let allImages = [];
+        let allLogs = [];
+        let currentPage = 1;
+        const imagesPerPage = 20;
+        let currentModalImage = null;
+
+        function formatJsonData(log, filename) {
+            const displayData = {
+                cnic_details: {
+                    side: log?.cnic_details?.side ?? "N/A",
+                    type: log?.cnic_details?.type ?? "N/A"
+                },
+                details: {
+                    is_blurry: log?.details?.is_blurry ?? false,
+                    is_too_bright: log?.details?.is_too_bright ?? false,
+                    is_too_dark: log?.details?.is_too_dark ?? false
+                },
+                authentication: {
+                    is_authentic: log?.is_authentic ?? false,
+                    is_retry: log?.is_retry ?? false,
+                    reason: log?.reason ?? "N/A"
+                }
+            };
+            
+            return displayData;
+        }
+
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            }).replace(/([{}[\],])/g, '<span class="json-punctuation">$1</span>');
+        }
+
+        function getTotalPages() {
+            return Math.ceil(allImages.length / imagesPerPage);
+        }
+
+        function getCurrentPageImages() {
+            const startIndex = (currentPage - 1) * imagesPerPage;
+            const endIndex = startIndex + imagesPerPage;
+            return allImages.slice(startIndex, endIndex);
+        }
+
+        function updateSelectionCount() {
+            const count = selectedImages.size;
+            const countElement = document.getElementById('selectionCount');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            countElement.textContent = `${count} image${count !== 1 ? 's' : ''} selected`;
+            downloadBtn.disabled = count === 0;
+            
+            // Update select all checkbox state
+            const selectAllCheckbox = document.getElementById('selectAll');
+            const currentPageImageNames = getCurrentPageImages();
+            const selectedOnCurrentPage = currentPageImageNames.filter(img => selectedImages.has(img)).length;
+            
+            if (selectedOnCurrentPage === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (selectedOnCurrentPage === currentPageImageNames.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        function updatePagination() {
+            const totalPages = getTotalPages();
+            const paginationElement = document.getElementById('pagination');
+            
+            if (totalPages <= 1) {
+                paginationElement.style.display = 'none';
+                return;
+            }
+
+            paginationElement.style.display = 'flex';
+            const startIndex = (currentPage - 1) * imagesPerPage + 1;
+            const endIndex = Math.min(currentPage * imagesPerPage, allImages.length);
+
+            document.getElementById('paginationInfo').textContent = 
+                `Showing ${startIndex} to ${endIndex} of ${allImages.length} images`;
+
+            // Update page numbers
+            const pageNumbers = document.getElementById('pageNumbers');
+            pageNumbers.innerHTML = '';
+
+            const maxVisiblePages = 5;
+            let startPage, endPage;
+
+            if (totalPages <= maxVisiblePages) {
+                startPage = 1;
+                endPage = totalPages;
+            } else if (currentPage <= 3) {
+                startPage = 1;
+                endPage = maxVisiblePages;
+            } else if (currentPage >= totalPages - 2) {
+                startPage = totalPages - maxVisiblePages + 1;
+                endPage = totalPages;
+            } else {
+                startPage = currentPage - 2;
+                endPage = currentPage + 2;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const button = document.createElement('button');
+                button.className = `pagination-btn page-btn ${i === currentPage ? 'active' : ''}`;
+                button.textContent = i;
+                button.onclick = () => goToPage(i);
+                pageNumbers.appendChild(button);
+            }
+
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderCurrentPage();
+            updatePagination();
+            updateSelectionCount();
+        }
+
+        function renderCurrentPage() {
+            const gallery = document.getElementById("imageGallery");
+            const currentImages = getCurrentPageImages();
+            
+            gallery.innerHTML = '';
+
+            currentImages.forEach(filename => {
+                const imageUrl = `/image/${filename}`;
+                const card = document.createElement("div");
+                card.className = "image-card";
+                if (selectedImages.has(filename)) {
+                    card.classList.add('selected');
+                }
+
+                card.innerHTML = `
+                    <input type="checkbox" class="image-checkbox" data-filename="${filename}" ${selectedImages.has(filename) ? 'checked' : ''}>
+                    <div class="image-container" onclick="openModal('${filename}')">
+                        <img src="${imageUrl}" alt="${filename}" onerror="this.src='/placeholder.svg?height=300&width=300'">
+                    </div>
+                    <div class="filename-header">📄 ${filename}</div>
+                `;
+
+                const checkbox = card.querySelector('.image-checkbox');
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    toggleImageSelection(filename, checkbox);
+                });
+
+                gallery.appendChild(card);
+            });
+        }
+
+        function toggleImageSelection(filename, checkbox) {
+            const imageBox = checkbox.closest('.image-card');
+            
+            if (checkbox.checked) {
+                selectedImages.add(filename);
+                imageBox.classList.add('selected');
+            } else {
+                selectedImages.delete(filename);
+                imageBox.classList.remove('selected');
+            }
+            
+            updateSelectionCount();
+        }
+
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            const currentPageImages = getCurrentPageImages();
+            
+            if (selectAllCheckbox.checked) {
+                currentPageImages.forEach(filename => selectedImages.add(filename));
+            } else {
+                currentPageImages.forEach(filename => selectedImages.delete(filename));
+            }
+            
+            renderCurrentPage();
+            updateSelectionCount();
+        }
+
+        function openModal(filename) {
+            const log = allLogs.find(l => l.filename === filename) || {};
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modalTitle').querySelector('span');
+            const modalImage = document.getElementById('modalImage');
+            const modalJson = document.getElementById('modalJson');
+            
+            currentModalImage = filename;
+            modalTitle.textContent = filename;
+            modalImage.src = `/image/${filename}`;
+            modalImage.alt = filename;
+            
+            const jsonData = formatJsonData(log, filename);
+            modalJson.innerHTML = syntaxHighlight(jsonData);
+            
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            currentModalImage = null;
+        }
+
+        async function downloadImage(filename) {
+            try {
+                const response = await fetch(`/image/${filename}`);
+                if (!response.ok) throw new Error(`Failed to download ${filename}`);
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                window.URL.revokeObjectURL(url);
+                return true;
+            } catch (error) {
+                console.error(`Error downloading ${filename}:`, error);
+                return false;
+            }
+        }
+
+        async function downloadSelectedImages() {
+            if (selectedImages.size === 0) return;
+            
+            const downloadBtn = document.getElementById('downloadBtn');
+            const progressDiv = document.getElementById('downloadProgress');
+            
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = `
+                <div class="spinner" style="width: 14px; height: 14px; margin: 0; border-width: 2px;"></div>
+                Downloading...
+            `;
+            progressDiv.style.display = 'block';
+            
+            const imagesToDownload = Array.from(selectedImages);
+            let downloaded = 0;
+            let failed = 0;
+            
+            for (let i = 0; i < imagesToDownload.length; i++) {
+                const filename = imagesToDownload[i];
+                progressDiv.textContent = `Downloading ${i + 1} of ${imagesToDownload.length}: ${filename}`;
+                
+                const success = await downloadImage(filename);
+                if (success) {
+                    downloaded++;
+                } else {
+                    failed++;
+                }
+                
+                if (i < imagesToDownload.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+            
+            progressDiv.textContent = `✅ Download complete! ${downloaded} successful, ${failed} failed.`;
+            
+            setTimeout(() => {
+                progressDiv.style.display = 'none';
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = `
+                    <svg class="download-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                    </svg>
+                    Download Selected
+                `;
+            }, 3000);
+        }
+
+        function showError(message) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("error").style.display = "flex";
+            document.getElementById("errorMessage").textContent = message;
+        }
+
+        function showContent() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('imageGallery').style.display = 'grid';
+            document.getElementById('pagination').style.display = 'flex';
+        }
+
+        // Event listeners
+        document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
+        document.getElementById('downloadBtn').addEventListener('click', downloadSelectedImages);
+        document.getElementById('closeModal').addEventListener('click', closeModal);
+        document.getElementById('modalDownloadBtn').addEventListener('click', () => {
+            if (currentModalImage) {
+                downloadImage(currentModalImage);
+            }
+        });
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            if (currentPage > 1) goToPage(currentPage - 1);
+        });
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            if (currentPage < getTotalPages()) goToPage(currentPage + 1);
+        });
+
+        // Close modal when clicking outside or pressing Escape
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Load and display the data
+        Promise.all([
+            fetch("/api/images").then(res => {
+                if (!res.ok) throw new Error(`Failed to fetch images: ${res.status}`);
+                return res.json();
+            }),
+            fetch("/api/logs").then(res => {
+                if (!res.ok) throw new Error(`Failed to fetch logs: ${res.status}`);
+                return res.json();
+            })
+        ])
+        .then(([filenames, logs]) => {
+            if (logs.length === 0) {
+                showError('No logs found in the database');
+                return;
+            }
+
+            allImages = filenames;
+            allLogs = logs;
+            
+            document.getElementById('totalImages').textContent = `${allImages.length} Images`;
+
+            showContent();
+            renderCurrentPage();
+            updatePagination();
+            updateSelectionCount();
+        })
+        .catch(err => {
+            console.error("Failed to load logs or images:", err);
+            showError(err.message);
+        });
+    </script>
+</body>
+</html>
