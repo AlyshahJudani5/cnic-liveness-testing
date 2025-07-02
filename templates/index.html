@@ -284,7 +284,7 @@
             transition: opacity 0.2s ease;
         }
 
-        .filename-header {
+        .image-id-header {
             padding: 16px;
             font-weight: 600;
             color: #111827;
@@ -709,29 +709,6 @@
         const imagesPerPage = 20;
         let currentModalData = null;
 
-        function formatJsonData(logEntry) {
-            const displayData = {
-                filename: logEntry.filename,
-                upload_time: logEntry.upload_time,
-                cnic_details: {
-                    side: logEntry.logs?.cnic_details?.side ?? "N/A",
-                    type: logEntry.logs?.cnic_details?.type ?? "N/A"
-                },
-                quality_checks: {
-                    is_blurry: logEntry.logs?.details?.is_blurry ?? false,
-                    is_too_bright: logEntry.logs?.details?.is_too_bright ?? false,
-                    is_too_dark: logEntry.logs?.details?.is_too_dark ?? false
-                },
-                authentication: {
-                    is_authentic: logEntry.logs?.is_authentic ?? false,
-                    is_retry: logEntry.logs?.is_retry ?? false,
-                    reason: logEntry.logs?.reason ?? "N/A"
-                }
-            };
-            
-            return displayData;
-        }
-
         function syntaxHighlight(json) {
             if (typeof json !== 'string') {
                 json = JSON.stringify(json, null, 2);
@@ -774,13 +751,13 @@
             
             // Update select all checkbox state
             const selectAllCheckbox = document.getElementById('selectAll');
-            const currentPageFilenames = getCurrentPageLogs().map(log => log.filename);
-            const selectedOnCurrentPage = currentPageFilenames.filter(filename => selectedImages.has(filename)).length;
+            const currentPageIds = getCurrentPageLogs().map(log => log._id);
+            const selectedOnCurrentPage = currentPageIds.filter(id => selectedImages.has(id)).length;
             
             if (selectedOnCurrentPage === 0) {
                 selectAllCheckbox.indeterminate = false;
                 selectAllCheckbox.checked = false;
-            } else if (selectedOnCurrentPage === currentPageFilenames.length) {
+            } else if (selectedOnCurrentPage === currentPageIds.length) {
                 selectAllCheckbox.indeterminate = false;
                 selectAllCheckbox.checked = true;
             } else {
@@ -852,41 +829,41 @@
             gallery.innerHTML = '';
 
             currentLogs.forEach(logEntry => {
-                const filename = logEntry.filename;
-                const imageData = `data:image/jpeg;base64,${logEntry.base64_image}`;
+                const imageId = logEntry._id;
+                const imageData = `data:image/jpeg;base64,${logEntry.image}`;
                 
                 const card = document.createElement("div");
                 card.className = "image-card";
-                if (selectedImages.has(filename)) {
+                if (selectedImages.has(imageId)) {
                     card.classList.add('selected');
                 }
 
                 card.innerHTML = `
-                    <input type="checkbox" class="image-checkbox" data-filename="${filename}" ${selectedImages.has(filename) ? 'checked' : ''}>
-                    <div class="image-container" onclick="openModal('${filename}')">
-                        <img src="${imageData}" alt="${filename}" onerror="this.src='/placeholder.svg?height=300&width=300'">
+                    <input type="checkbox" class="image-checkbox" data-id="${imageId}" ${selectedImages.has(imageId) ? 'checked' : ''}>
+                    <div class="image-container" onclick="openModal('${imageId}')">
+                        <img src="${imageData}" alt="CNIC Image ${imageId}" onerror="this.src='/placeholder.svg?height=300&width=300'">
                     </div>
-                    <div class="filename-header">📄 ${filename}</div>
+                    <div class="image-id-header">📄 ID: ${imageId}</div>
                 `;
 
                 const checkbox = card.querySelector('.image-checkbox');
                 checkbox.addEventListener('change', (e) => {
                     e.stopPropagation();
-                    toggleImageSelection(filename, checkbox);
+                    toggleImageSelection(imageId, checkbox);
                 });
 
                 gallery.appendChild(card);
             });
         }
 
-        function toggleImageSelection(filename, checkbox) {
+        function toggleImageSelection(imageId, checkbox) {
             const imageBox = checkbox.closest('.image-card');
             
             if (checkbox.checked) {
-                selectedImages.add(filename);
+                selectedImages.add(imageId);
                 imageBox.classList.add('selected');
             } else {
-                selectedImages.delete(filename);
+                selectedImages.delete(imageId);
                 imageBox.classList.remove('selected');
             }
             
@@ -895,20 +872,20 @@
 
         function toggleSelectAll() {
             const selectAllCheckbox = document.getElementById('selectAll');
-            const currentPageFilenames = getCurrentPageLogs().map(log => log.filename);
+            const currentPageIds = getCurrentPageLogs().map(log => log._id);
             
             if (selectAllCheckbox.checked) {
-                currentPageFilenames.forEach(filename => selectedImages.add(filename));
+                currentPageIds.forEach(id => selectedImages.add(id));
             } else {
-                currentPageFilenames.forEach(filename => selectedImages.delete(filename));
+                currentPageIds.forEach(id => selectedImages.delete(id));
             }
             
             renderCurrentPage();
             updateSelectionCount();
         }
 
-        function openModal(filename) {
-            const logEntry = allLogs.find(l => l.filename === filename);
+        function openModal(imageId) {
+            const logEntry = allLogs.find(l => l._id === imageId);
             if (!logEntry) return;
 
             const modal = document.getElementById('modal');
@@ -917,12 +894,12 @@
             const modalJson = document.getElementById('modalJson');
             
             currentModalData = logEntry;
-            modalTitle.textContent = filename;
-            modalImage.src = `data:image/jpeg;base64,${logEntry.base64_image}`;
-            modalImage.alt = filename;
+            modalTitle.textContent = `ID: ${imageId}`;
+            modalImage.src = `data:image/jpeg;base64,${logEntry.image}`;
+            modalImage.alt = `CNIC Image ${imageId}`;
             
-            const jsonData = formatJsonData(logEntry);
-            modalJson.innerHTML = syntaxHighlight(jsonData);
+            // Display the raw JSON data as-is
+            modalJson.innerHTML = syntaxHighlight(logEntry);
             
             modal.classList.add('active');
         }
@@ -932,7 +909,7 @@
             currentModalData = null;
         }
 
-        function downloadBase64Image(base64Data, filename) {
+        function downloadBase64Image(base64Data, imageId) {
             try {
                 // Convert base64 to blob
                 const byteCharacters = atob(base64Data);
@@ -947,7 +924,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = filename + '.jpg';
+                a.download = `CNIC_${imageId}.jpg`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -955,7 +932,7 @@
                 
                 return true;
             } catch (error) {
-                console.error(`Error downloading ${filename}:`, error);
+                console.error(`Error downloading image ${imageId}:`, error);
                 return false;
             }
         }
@@ -973,18 +950,18 @@
             `;
             progressDiv.style.display = 'block';
             
-            const selectedFilenames = Array.from(selectedImages);
+            const selectedIds = Array.from(selectedImages);
             let downloaded = 0;
             let failed = 0;
             
-            for (let i = 0; i < selectedFilenames.length; i++) {
-                const filename = selectedFilenames[i];
-                const logEntry = allLogs.find(l => l.filename === filename);
+            for (let i = 0; i < selectedIds.length; i++) {
+                const imageId = selectedIds[i];
+                const logEntry = allLogs.find(l => l._id === imageId);
                 
                 if (logEntry) {
-                    progressDiv.textContent = `Downloading ${i + 1} of ${selectedFilenames.length}: ${filename}`;
+                    progressDiv.textContent = `Downloading ${i + 1} of ${selectedIds.length}: ID ${imageId}`;
                     
-                    const success = downloadBase64Image(logEntry.base64_image, filename);
+                    const success = downloadBase64Image(logEntry.image, imageId);
                     if (success) {
                         downloaded++;
                     } else {
@@ -992,7 +969,7 @@
                     }
                     
                     // Small delay between downloads
-                    if (i < selectedFilenames.length - 1) {
+                    if (i < selectedIds.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
                 }
@@ -1030,7 +1007,7 @@
         document.getElementById('closeModal').addEventListener('click', closeModal);
         document.getElementById('modalDownloadBtn').addEventListener('click', () => {
             if (currentModalData) {
-                downloadBase64Image(currentModalData.base64_image, currentModalData.filename);
+                downloadBase64Image(currentModalData.image, currentModalData._id);
             }
         });
         document.getElementById('prevBtn').addEventListener('click', () => {
@@ -1060,11 +1037,8 @@
                     return;
                 }
 
-                // Add synthetic filenames to each log entry
-                allLogs = cnicLogs.map((entry, index) => ({
-                    ...entry,
-                    filename: `CNIC_Image_${String(index + 1).padStart(3, '0')}`
-                }));
+                // Use the data as-is without adding filenames
+                allLogs = cnicLogs;
 
                 document.getElementById('totalImages').textContent = `${allLogs.length} Images`;
 

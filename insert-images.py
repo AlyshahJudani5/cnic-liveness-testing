@@ -26,8 +26,8 @@ for image_name in os.listdir(image_folder):
 
         # 6. Prepare a single document with logs and image
         document = {
-            "upload_time": datetime.utcnow(),
-            "logs": {
+            "time": datetime.utcnow(),
+            "response": {
                 "cnic_details": {
                     "side": "front",
                     "type": "smart"
@@ -41,7 +41,7 @@ for image_name in os.listdir(image_folder):
                 "is_retry": True,
                 "reason": "Most tests indicate this is likely a copy or fake"
             },
-            "base64_image": base64_image
+            "image": base64_image
         }
 
         # 7. Insert the single document into MongoDB

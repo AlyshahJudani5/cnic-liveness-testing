@@ -2,6 +2,7 @@ from flask import Flask, send_file, jsonify, request, render_template
 from pymongo import MongoClient
 from io import BytesIO
 import base64
+from bson import ObjectId
 
 app = Flask(__name__)
 
@@ -14,13 +15,16 @@ cnic_col = db["cnic_dumps"]  # 👈 only one collection now
 def index():
     return render_template("index.html")
 
-# ✅ Get list of image filenames
+
 @app.route("/api/cnic-logs", methods=["GET"])
 def get_complete_cnic_logs():
     try:
-        # Fetch all documents, excluding the internal MongoDB ID
-        cursor = cnic_col.find({}, {"_id": 0})
-        full_logs = list(cursor)
+        # Fetch all documents, including the _id
+        cursor = cnic_col.find({})
+        full_logs = []
+        for doc in cursor:
+            doc["_id"] = str(doc["_id"])  # Convert ObjectId to string
+            full_logs.append(doc)
         return jsonify(full_logs)
     except Exception as e:
         return jsonify({"error": f"Failed to fetch logs: {str(e)}"}), 500
