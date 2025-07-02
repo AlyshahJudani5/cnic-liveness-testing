@@ -704,27 +704,28 @@
 
     <script>
         let selectedImages = new Set();
-        let allImages = [];
         let allLogs = [];
         let currentPage = 1;
         const imagesPerPage = 20;
-        let currentModalImage = null;
+        let currentModalData = null;
 
-        function formatJsonData(log, filename) {
+        function formatJsonData(logEntry) {
             const displayData = {
+                filename: logEntry.filename,
+                upload_time: logEntry.upload_time,
                 cnic_details: {
-                    side: log?.cnic_details?.side ?? "N/A",
-                    type: log?.cnic_details?.type ?? "N/A"
+                    side: logEntry.logs?.cnic_details?.side ?? "N/A",
+                    type: logEntry.logs?.cnic_details?.type ?? "N/A"
                 },
-                details: {
-                    is_blurry: log?.details?.is_blurry ?? false,
-                    is_too_bright: log?.details?.is_too_bright ?? false,
-                    is_too_dark: log?.details?.is_too_dark ?? false
+                quality_checks: {
+                    is_blurry: logEntry.logs?.details?.is_blurry ?? false,
+                    is_too_bright: logEntry.logs?.details?.is_too_bright ?? false,
+                    is_too_dark: logEntry.logs?.details?.is_too_dark ?? false
                 },
                 authentication: {
-                    is_authentic: log?.is_authentic ?? false,
-                    is_retry: log?.is_retry ?? false,
-                    reason: log?.reason ?? "N/A"
+                    is_authentic: logEntry.logs?.is_authentic ?? false,
+                    is_retry: logEntry.logs?.is_retry ?? false,
+                    reason: logEntry.logs?.reason ?? "N/A"
                 }
             };
             
@@ -754,13 +755,13 @@
         }
 
         function getTotalPages() {
-            return Math.ceil(allImages.length / imagesPerPage);
+            return Math.ceil(allLogs.length / imagesPerPage);
         }
 
-        function getCurrentPageImages() {
+        function getCurrentPageLogs() {
             const startIndex = (currentPage - 1) * imagesPerPage;
             const endIndex = startIndex + imagesPerPage;
-            return allImages.slice(startIndex, endIndex);
+            return allLogs.slice(startIndex, endIndex);
         }
 
         function updateSelectionCount() {
@@ -773,13 +774,13 @@
             
             // Update select all checkbox state
             const selectAllCheckbox = document.getElementById('selectAll');
-            const currentPageImageNames = getCurrentPageImages();
-            const selectedOnCurrentPage = currentPageImageNames.filter(img => selectedImages.has(img)).length;
+            const currentPageFilenames = getCurrentPageLogs().map(log => log.filename);
+            const selectedOnCurrentPage = currentPageFilenames.filter(filename => selectedImages.has(filename)).length;
             
             if (selectedOnCurrentPage === 0) {
                 selectAllCheckbox.indeterminate = false;
                 selectAllCheckbox.checked = false;
-            } else if (selectedOnCurrentPage === currentPageImageNames.length) {
+            } else if (selectedOnCurrentPage === currentPageFilenames.length) {
                 selectAllCheckbox.indeterminate = false;
                 selectAllCheckbox.checked = true;
             } else {
@@ -798,10 +799,10 @@
 
             paginationElement.style.display = 'flex';
             const startIndex = (currentPage - 1) * imagesPerPage + 1;
-            const endIndex = Math.min(currentPage * imagesPerPage, allImages.length);
+            const endIndex = Math.min(currentPage * imagesPerPage, allLogs.length);
 
             document.getElementById('paginationInfo').textContent = 
-                `Showing ${startIndex} to ${endIndex} of ${allImages.length} images`;
+                `Showing ${startIndex} to ${endIndex} of ${allLogs.length} images`;
 
             // Update page numbers
             const pageNumbers = document.getElementById('pageNumbers');
@@ -846,12 +847,14 @@
 
         function renderCurrentPage() {
             const gallery = document.getElementById("imageGallery");
-            const currentImages = getCurrentPageImages();
+            const currentLogs = getCurrentPageLogs();
             
             gallery.innerHTML = '';
 
-            currentImages.forEach(filename => {
-                const imageUrl = `/image/${filename}`;
+            currentLogs.forEach(logEntry => {
+                const filename = logEntry.filename;
+                const imageData = `data:image/jpeg;base64,${logEntry.base64_image}`;
+                
                 const card = document.createElement("div");
                 card.className = "image-card";
                 if (selectedImages.has(filename)) {
@@ -861,7 +864,7 @@
                 card.innerHTML = `
                     <input type="checkbox" class="image-checkbox" data-filename="${filename}" ${selectedImages.has(filename) ? 'checked' : ''}>
                     <div class="image-container" onclick="openModal('${filename}')">
-                        <img src="${imageUrl}" alt="${filename}" onerror="this.src='/placeholder.svg?height=300&width=300'">
+                        <img src="${imageData}" alt="${filename}" onerror="this.src='/placeholder.svg?height=300&width=300'">
                     </div>
                     <div class="filename-header">📄 ${filename}</div>
                 `;
@@ -892,12 +895,12 @@
 
         function toggleSelectAll() {
             const selectAllCheckbox = document.getElementById('selectAll');
-            const currentPageImages = getCurrentPageImages();
+            const currentPageFilenames = getCurrentPageLogs().map(log => log.filename);
             
             if (selectAllCheckbox.checked) {
-                currentPageImages.forEach(filename => selectedImages.add(filename));
+                currentPageFilenames.forEach(filename => selectedImages.add(filename));
             } else {
-                currentPageImages.forEach(filename => selectedImages.delete(filename));
+                currentPageFilenames.forEach(filename => selectedImages.delete(filename));
             }
             
             renderCurrentPage();
@@ -905,18 +908,20 @@
         }
 
         function openModal(filename) {
-            const log = allLogs.find(l => l.filename === filename) || {};
+            const logEntry = allLogs.find(l => l.filename === filename);
+            if (!logEntry) return;
+
             const modal = document.getElementById('modal');
             const modalTitle = document.getElementById('modalTitle').querySelector('span');
             const modalImage = document.getElementById('modalImage');
             const modalJson = document.getElementById('modalJson');
             
-            currentModalImage = filename;
+            currentModalData = logEntry;
             modalTitle.textContent = filename;
-            modalImage.src = `/image/${filename}`;
+            modalImage.src = `data:image/jpeg;base64,${logEntry.base64_image}`;
             modalImage.alt = filename;
             
-            const jsonData = formatJsonData(log, filename);
+            const jsonData = formatJsonData(logEntry);
             modalJson.innerHTML = syntaxHighlight(jsonData);
             
             modal.classList.add('active');
@@ -924,25 +929,30 @@
 
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
-            currentModalImage = null;
+            currentModalData = null;
         }
 
-        async function downloadImage(filename) {
+        function downloadBase64Image(base64Data, filename) {
             try {
-                const response = await fetch(`/image/${filename}`);
-                if (!response.ok) throw new Error(`Failed to download ${filename}`);
+                // Convert base64 to blob
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'image/jpeg' });
                 
-                const blob = await response.blob();
+                // Create download link
                 const url = window.URL.createObjectURL(blob);
-                
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = filename;
+                a.download = filename + '.jpg';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                
                 window.URL.revokeObjectURL(url);
+                
                 return true;
             } catch (error) {
                 console.error(`Error downloading ${filename}:`, error);
@@ -963,23 +973,28 @@
             `;
             progressDiv.style.display = 'block';
             
-            const imagesToDownload = Array.from(selectedImages);
+            const selectedFilenames = Array.from(selectedImages);
             let downloaded = 0;
             let failed = 0;
             
-            for (let i = 0; i < imagesToDownload.length; i++) {
-                const filename = imagesToDownload[i];
-                progressDiv.textContent = `Downloading ${i + 1} of ${imagesToDownload.length}: ${filename}`;
+            for (let i = 0; i < selectedFilenames.length; i++) {
+                const filename = selectedFilenames[i];
+                const logEntry = allLogs.find(l => l.filename === filename);
                 
-                const success = await downloadImage(filename);
-                if (success) {
-                    downloaded++;
-                } else {
-                    failed++;
-                }
-                
-                if (i < imagesToDownload.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                if (logEntry) {
+                    progressDiv.textContent = `Downloading ${i + 1} of ${selectedFilenames.length}: ${filename}`;
+                    
+                    const success = downloadBase64Image(logEntry.base64_image, filename);
+                    if (success) {
+                        downloaded++;
+                    } else {
+                        failed++;
+                    }
+                    
+                    // Small delay between downloads
+                    if (i < selectedFilenames.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
                 }
             }
             
@@ -1007,7 +1022,6 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('error').style.display = 'none';
             document.getElementById('imageGallery').style.display = 'grid';
-            document.getElementById('pagination').style.display = 'flex';
         }
 
         // Event listeners
@@ -1015,8 +1029,8 @@
         document.getElementById('downloadBtn').addEventListener('click', downloadSelectedImages);
         document.getElementById('closeModal').addEventListener('click', closeModal);
         document.getElementById('modalDownloadBtn').addEventListener('click', () => {
-            if (currentModalImage) {
-                downloadImage(currentModalImage);
+            if (currentModalData) {
+                downloadBase64Image(currentModalData.base64_image, currentModalData.filename);
             }
         });
         document.getElementById('prevBtn').addEventListener('click', () => {
@@ -1035,36 +1049,34 @@
         });
 
         // Load and display the data
-        Promise.all([
-            fetch("/api/images").then(res => {
-                if (!res.ok) throw new Error(`Failed to fetch images: ${res.status}`);
-                return res.json();
-            }),
-            fetch("/api/logs").then(res => {
-                if (!res.ok) throw new Error(`Failed to fetch logs: ${res.status}`);
+        fetch("/api/cnic-logs")
+            .then(res => {
+                if (!res.ok) throw new Error(`Failed to fetch CNIC logs: ${res.status}`);
                 return res.json();
             })
-        ])
-        .then(([filenames, logs]) => {
-            if (logs.length === 0) {
-                showError('No logs found in the database');
-                return;
-            }
+            .then(cnicLogs => {
+                if (!cnicLogs || cnicLogs.length === 0) {
+                    showError('No CNIC logs found in the database');
+                    return;
+                }
 
-            allImages = filenames;
-            allLogs = logs;
-            
-            document.getElementById('totalImages').textContent = `${allImages.length} Images`;
+                // Add synthetic filenames to each log entry
+                allLogs = cnicLogs.map((entry, index) => ({
+                    ...entry,
+                    filename: `CNIC_Image_${String(index + 1).padStart(3, '0')}`
+                }));
 
-            showContent();
-            renderCurrentPage();
-            updatePagination();
-            updateSelectionCount();
-        })
-        .catch(err => {
-            console.error("Failed to load logs or images:", err);
-            showError(err.message);
-        });
+                document.getElementById('totalImages').textContent = `${allLogs.length} Images`;
+
+                showContent();
+                renderCurrentPage();
+                updatePagination();
+                updateSelectionCount();
+            })
+            .catch(err => {
+                console.error("Failed to load CNIC logs:", err);
+                showError(err.message);
+            });
     </script>
 </body>
 </html>

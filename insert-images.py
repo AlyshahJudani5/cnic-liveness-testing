@@ -1,55 +1,49 @@
 import os
+import base64
 from pymongo import MongoClient
 from datetime import datetime
 
-# 1. Connect to MongoDB running on localhost
+# 1. Connect to MongoDB Atlas
 client = MongoClient("mongodb+srv://alyshahjudani5:dw5vdF2OY2W0sD19@test-db.aklnuk2.mongodb.net/")
 
-# 2. Choose (or create) a database and collection
+# 2. Use your target database and collection
 db = client["sample_db"]
-images_col = db["images"]
-logs_col = db["logs"]
+cnic_dumps_col = db["cnic_dumps"]
 
 # 3. Folder where your sample images are stored
 image_folder = "images"
 
-
-# 4. Loop through all files in the folder
+# 4. Loop through all image files
 for image_name in os.listdir(image_folder):
     if image_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
-
+        # Construct the full path to the image
         image_path = os.path.join(image_folder, image_name)
 
-        # 5. Open the image file in binary read mode
+        # 5. Read the image and encode it as base64
         with open(image_path, 'rb') as f:
             image_data = f.read()
+            base64_image = base64.b64encode(image_data).decode('utf-8')
 
-        # 6. Prepare the document with metadata and binary data
-        image_doc = {
-            "filename": image_name,
-            "data": image_data,
-            "upload_time": datetime.utcnow()
+        # 6. Prepare a single document with logs and image
+        document = {
+            "upload_time": datetime.utcnow(),
+            "logs": {
+                "cnic_details": {
+                    "side": "front",
+                    "type": "smart"
+                },
+                "details": {
+                    "is_blurry": True,
+                    "is_too_bright": False,
+                    "is_too_dark": False
+                },
+                "is_authentic": False,
+                "is_retry": True,
+                "reason": "Most tests indicate this is likely a copy or fake"
+            },
+            "base64_image": base64_image
         }
 
-        # 7. Insert the image document into MongoDB
-        images_col.insert_one(image_doc)
-
-        # 8. Log the insert in a separate logs collection
-        log_entry = {
-                        "filename": image_name,
-                        "cnic_details": {
-                            "side": "front",
-                            "type": "smart"
-                        },
-                        "details": {
-                            "is_blurry": True,
-                            "is_too_bright": False,
-                            "is_too_dark": False
-                        },
-                        "is_authentic": False,
-                        "is_retry": True,
-                        "reason": "Most tests indicate this is likely a copy or fake"
-                    }
-        logs_col.insert_one(log_entry)
-
-        print(f"[✔] Inserted and logged: {image_name}")
+        # 7. Insert the single document into MongoDB
+        cnic_dumps_col.insert_one(document)
+        print(f"[✔] Inserted: {image_name}")
